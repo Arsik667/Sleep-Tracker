@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ApiError, checkSleep, validationMessages } from './api';
+import HistoryChart from './components/HistoryChart';
 import ResultCard from './components/ResultCard';
 import SleepForm from './components/SleepForm';
 
@@ -8,6 +9,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formErrors, setFormErrors] = useState([]);
+  const [historyVersion, setHistoryVersion] = useState(0); // +1 после сохранения — история перезагрузится
   const resultRef = useRef(null);
 
   const handleSubmit = async (night, save) => {
@@ -16,6 +18,7 @@ export default function App() {
     setFormErrors([]);
     try {
       setResult(await checkSleep(night, save));
+      if (save) setHistoryVersion((v) => v + 1);
       // В одну колонку карточка результата оказывается под формой — прокручиваем к ней.
       if (window.matchMedia('(max-width: 899px)').matches) {
         requestAnimationFrame(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -48,6 +51,8 @@ export default function App() {
           <ResultCard result={result} />
         </div>
       </main>
+
+      <HistoryChart refreshKey={historyVersion} />
 
       <footer className="app__footer">
         SleepTrack — учебный проект, а не медицинский инструмент. Если сон плохой неделями, стоит обратиться к врачу.

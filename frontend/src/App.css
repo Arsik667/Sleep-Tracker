@@ -530,3 +530,259 @@ legend {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* --- история и тренд ------------------------------------------------------------------ */
+
+.history {
+  margin-top: 20px;
+  transition: opacity 0.15s;
+}
+
+.history--loading {
+  opacity: 0.55;
+}
+
+.history__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history__head .card__title {
+  margin-bottom: 2px;
+}
+
+.history__subtitle {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.segmented button {
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed='true'] {
+  color: var(--text-primary);
+  font-weight: 600;
+  background: var(--accent-wash);
+}
+
+.segmented button:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.stats--summary {
+  margin-bottom: 20px;
+}
+
+.delta--up {
+  color: var(--delta-up);
+}
+
+.delta--down {
+  color: var(--delta-down);
+}
+
+.empty {
+  margin: 0;
+  padding: 28px 0;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.chart-figure {
+  margin: 0;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart {
+  position: relative;
+  border-radius: 6px;
+  touch-action: pan-y;
+}
+
+.chart:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.chart svg {
+  display: block;
+  overflow: visible;
+}
+
+.chart__grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart__axis {
+  stroke: var(--axis);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart__tick {
+  font-size: 11px;
+  fill: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart__crosshair {
+  stroke: var(--axis);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+/* Кольцо цвета фона вокруг точек — чтобы они читались поверх линии и друг друга. */
+.chart__dot {
+  fill: var(--deemph);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.chart__dot--active {
+  fill: var(--text-secondary);
+}
+
+.chart__avg {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart__avg-dot {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.chart__end-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--text-primary);
+}
+
+.chart-caption {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 1;
+  padding: 8px 10px;
+  white-space: nowrap;
+  font-size: 13px;
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.tooltip__date {
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+}
+
+.tooltip__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.tooltip__row strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltip__key {
+  flex: none;
+  width: 12px;
+}
+
+.tooltip__key--dot {
+  height: 8px;
+  width: 8px;
+  margin: 0 2px;
+  background: var(--deemph);
+  border-radius: 50%;
+}
+
+.tooltip__key--line {
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.tooltip__meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.history-table {
+  width: 100%;
+  font-size: 14px;
+  border-collapse: collapse;
+}
+
+.history-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.history-table th,
+.history-table td {
+  padding: 8px 10px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--grid);
+}
+
+.history-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
