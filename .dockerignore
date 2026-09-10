@@ -1,0 +1,10 @@
+# Контекст сборки API — корень репозитория; фронтенд собирается своим Dockerfile.
+.git
+.venv
+venv
+**/__pycache__
+.pytest_cache
+*.db
+frontend
+tests
+docs

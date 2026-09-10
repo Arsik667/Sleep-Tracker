@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      # Пароль для локального запуска. Для чего-то кроме своего ноутбука — поменять.
+      POSTGRES_USER: sleeptrack
+      POSTGRES_PASSWORD: sleeptrack
+      POSTGRES_DB: sleeptrack
+    volumes:
+      - pgdata:/var/lib/postgresql/data # история сна переживает docker compose down
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sleeptrack -d sleeptrack"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Порт наружу не публикуем: к базе ходит только api внутри сети compose.
+
+  api:
+    build: .
+    environment:
+      SLEEPTRACK_DATABASE_URL: postgresql+psycopg://sleeptrack:sleeptrack@db:5432/sleeptrack
+      SLEEPTRACK_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+    ports:
+      - "127.0.0.1:8000:8000" # только localhost — в локальную сеть не торчит
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
