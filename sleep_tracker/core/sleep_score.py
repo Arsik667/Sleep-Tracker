@@ -69,6 +69,22 @@ MINUTES_PER_DAY = 24 * 60
 
 
 @dataclass(frozen=True)
+class Problem:
+    """Ошибка входа. code — стабильный ключ: по нему API и фронтенд показывают текст
+    на языке интерфейса; message — готовый текст по-русски (для CLI и логов)."""
+
+    code: str
+    message: str
+    ctx: dict = field(default_factory=dict)
+
+
+class InvalidNightError(ValueError):
+    def __init__(self, problems: list[Problem]):
+        self.problems = problems
+        super().__init__("; ".join(p.message for p in problems))
+
+
+@dataclass(frozen=True)
 class NightData:
     """Параметры одной ночи. Проверяет себя при создании и бросает ValueError с понятным текстом."""
 
@@ -85,38 +101,46 @@ class NightData:
     def __post_init__(self) -> None:
         problems = self._problems()
         if problems:
-            raise ValueError("; ".join(problems))
+            raise InvalidNightError(problems)
 
     @property
     def time_in_bed_hours(self) -> float:
         return minutes_between(self.bedtime, self.wake_time) / 60
 
-    def _problems(self) -> list[str]:
+    def _problems(self) -> list[Problem]:
         problems = []
         if not 0 < self.total_sleep_hours <= 24:
-            problems.append("общее время сна должно быть больше 0 и не больше 24 часов")
+            problems.append(
+                Problem("sleep_hours_out_of_range", "общее время сна должно быть больше 0 и не больше 24 часов")
+            )
         if self.waso_minutes < 0:
-            problems.append("WASO не может быть отрицательным")
+            problems.append(Problem("negative_waso", "WASO не может быть отрицательным"))
         if self.awakenings < 0:
-            problems.append("число пробуждений не может быть отрицательным")
-        for name, value in (("глубокого", self.deep_sleep_minutes), ("REM", self.rem_sleep_minutes)):
+            problems.append(Problem("negative_awakenings", "число пробуждений не может быть отрицательным"))
+        for stage, name, value in (("deep", "глубокого", self.deep_sleep_minutes), ("rem", "REM", self.rem_sleep_minutes)):
             if value is not None and value < 0:
-                problems.append(f"минуты {name} сна не могут быть отрицательными")
+                problems.append(
+                    Problem("negative_stage", f"минуты {name} сна не могут быть отрицательными", {"stage": stage})
+                )
         if problems:
             return problems  # дальше сверяем поля между собой — с мусором это бессмысленно
 
         in_bed = self.time_in_bed_hours
         if in_bed == 0:
-            return ["время отбоя и подъёма совпадают"]
+            return [Problem("same_bed_and_wake", "время отбоя и подъёма совпадают")]
         if self.total_sleep_hours > in_bed + TOLERANCE_HOURS:
             problems.append(
-                f"сна {self.total_sleep_hours:g} ч — больше, чем времени в постели ({in_bed:.2f} ч)"
+                Problem(
+                    "sleep_exceeds_bed",
+                    f"сна {self.total_sleep_hours:g} ч — больше, чем времени в постели ({in_bed:.2f} ч)",
+                    {"sleep_hours": self.total_sleep_hours, "in_bed_hours": round(in_bed, 2)},
+                )
             )
         elif self.total_sleep_hours + self.waso_minutes / 60 > in_bed + TOLERANCE_HOURS:
-            problems.append("сон вместе с WASO не помещается во время в постели")
+            problems.append(Problem("waso_exceeds_bed", "сон вместе с WASO не помещается во время в постели"))
         stages_minutes = (self.deep_sleep_minutes or 0) + (self.rem_sleep_minutes or 0)
         if stages_minutes / 60 > self.total_sleep_hours + TOLERANCE_HOURS:
-            problems.append("глубокий и REM-сон вместе больше общего времени сна")
+            problems.append(Problem("stages_exceed_sleep", "глубокий и REM-сон вместе больше общего времени сна"))
         return problems
 
 

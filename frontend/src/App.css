@@ -81,6 +81,13 @@ body {
   padding: 32px 20px 48px;
 }
 
+.app__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .app__header h1 {
   margin: 0;
   font-size: 28px;

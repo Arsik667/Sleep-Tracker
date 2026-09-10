@@ -3,17 +3,17 @@ from itertools import product
 
 import pytest
 
-from sleep_tracker.core.recommendations import MAX_TIPS, MIN_TIPS, TIPS, build_recommendations
+from sleep_tracker.core.recommendations import MAX_TIPS, MIN_TIPS, TIPS_EN, TIPS_RU, build_recommendations
 from sleep_tracker.core.sleep_score import NightData, calculate_sleep_score
 
 STEADY_BEDTIMES = [time(23, 0), time(23, 10), time(22, 50), time(23, 0)]
 
 
-def tips_for(previous_bedtimes=(), **overrides):
+def tips_for(previous_bedtimes=(), lang="ru", **overrides):
     params = dict(bedtime=time(23, 0), wake_time=time(7, 0), total_sleep_hours=7.6, waso_minutes=10, awakenings=1)
     params.update(overrides)
     night = NightData(**params)
-    return build_recommendations(night, calculate_sleep_score(night, previous_bedtimes))
+    return build_recommendations(night, calculate_sleep_score(night, previous_bedtimes), lang)
 
 
 def texts(tips):
@@ -22,19 +22,19 @@ def texts(tips):
 
 def test_great_night_gets_two_general_tips():
     tips = tips_for(STEADY_BEDTIMES, deep_sleep_minutes=90, rem_sleep_minutes=110)
-    assert texts(tips) == [TIPS["keep_it_up"], TIPS["morning_light"]]
+    assert texts(tips) == [TIPS_RU["keep_it_up"], TIPS_RU["morning_light"]]
 
 
 def test_without_history_and_stages_suggests_to_log_more():
     tips = tips_for()
-    assert texts(tips) == [TIPS["log_more"], TIPS["track_stages"]]
+    assert texts(tips) == [TIPS_RU["log_more"], TIPS_RU["track_stages"]]
 
 
 def test_short_and_long_sleep_get_different_tips():
     short = tips_for(bedtime=time(1, 30), wake_time=time(6, 0), total_sleep_hours=4.2)
     long = tips_for(bedtime=time(21, 0), wake_time=time(8, 0), total_sleep_hours=10.5)
-    assert short[0].text == TIPS["duration_short"]
-    assert long[0].text == TIPS["duration_long"]
+    assert short[0].text == TIPS_RU["duration_short"]
+    assert long[0].text == TIPS_RU["duration_long"]
 
 
 def test_tips_are_ranked_by_points_lost():
@@ -64,7 +64,7 @@ def test_no_more_than_four_tips():
     ],
 )
 def test_tip_variant_matches_what_went_wrong(overrides, expected):
-    assert TIPS[expected] in texts(tips_for(**overrides))
+    assert TIPS_RU[expected] in texts(tips_for(**overrides))
 
 
 def test_penalty_tips_mention_points():
@@ -85,3 +85,19 @@ def test_always_between_two_and_four_unique_tips(sleep_hours, waso, awakenings, 
     )
     assert MIN_TIPS <= len(tips) <= MAX_TIPS
     assert len(set(texts(tips))) == len(tips)
+
+
+def test_english_tips_have_the_same_keys():
+    assert TIPS_EN.keys() == TIPS_RU.keys()
+
+
+def test_english_recommendations():
+    tips = tips_for(lang="en", caffeine_after_14=True)
+    assert tips[0].text == TIPS_EN["caffeine_after_14"]
+    assert "−5 points" in tips[0].text
+    assert [tip.component for tip in tips] == [tip.component for tip in tips_for(caffeine_after_14=True)]
+
+
+def test_unknown_language_is_rejected():
+    with pytest.raises(ValueError, match="не поддерживается"):
+        tips_for(lang="de")

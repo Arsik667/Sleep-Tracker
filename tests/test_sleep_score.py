@@ -7,6 +7,7 @@ import pytest
 
 from sleep_tracker.core.sleep_score import (
     HISTORY_WINDOW,
+    InvalidNightError,
     NightData,
     bedtime_spread_minutes,
     calculate_sleep_score,
@@ -236,6 +237,29 @@ def test_result_is_json_serializable():
 def test_invalid_nights_are_rejected(overrides, message):
     with pytest.raises(ValueError, match=message):
         night(**overrides)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "code"),
+    [
+        ({"total_sleep_hours": 8.5}, "sleep_exceeds_bed"),
+        ({"waso_minutes": 45}, "waso_exceeds_bed"),
+        ({"deep_sleep_minutes": 300, "rem_sleep_minutes": 200}, "stages_exceed_sleep"),
+        ({"wake_time": time(23, 0)}, "same_bed_and_wake"),
+        ({"rem_sleep_minutes": -1}, "negative_stage"),
+    ],
+)
+def test_problems_carry_stable_codes(overrides, code):
+    # По коду фронтенд показывает текст на языке интерфейса, поэтому коды — часть контракта.
+    with pytest.raises(InvalidNightError) as exc:
+        night(**overrides)
+    assert exc.value.problems[0].code == code
+
+
+def test_problem_context_has_numbers_for_the_message():
+    with pytest.raises(InvalidNightError) as exc:
+        night(total_sleep_hours=8.5)
+    assert exc.value.problems[0].ctx == {"sleep_hours": 8.5, "in_bed_hours": 8.0}
 
 
 def test_small_rounding_in_the_form_is_tolerated():

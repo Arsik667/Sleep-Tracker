@@ -4,15 +4,19 @@
 - диапазоны отдельных полей (WASO ≥ 0, сон ≤ 24 ч и т. п.) — здесь, через Field,
   чтобы фронтенд получил ошибку, привязанную к конкретному полю;
 - связи между полями (сон не больше времени в постели и т. п.) — в core.NightData,
-  одна реализация на API и CLI. ValueError оттуда Pydantic превращает в ответ 422.
+  одна реализация на API и CLI.
+
+Наши ошибки уходят в ответ 422 со своим кодом в поле type (sleep_exceeds_bed и т. п.):
+по нему фронтенд показывает текст на языке интерфейса, а msg остаётся по-русски.
 """
 
 from datetime import date, datetime, time, timedelta
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic_core import PydanticCustomError
 
-from .core.sleep_score import NightData
+from .core.sleep_score import InvalidNightError, NightData
 
 MINUTES_PER_DAY = 24 * 60
 Category = Literal["excellent", "good", "fair", "poor"]
@@ -54,7 +58,7 @@ class SleepCheckRequest(BaseModel):
     def _not_in_future(cls, value: date | None) -> date | None:
         # +1 день — запас на часовые пояса: у пользователя может быть уже «завтра».
         if value is not None and value > date.today() + timedelta(days=1):
-            raise ValueError("дата ночи не может быть в будущем")
+            raise PydanticCustomError("date_in_future", "дата ночи не может быть в будущем")
         return value
 
     @field_validator("bedtime", "wake_time")
@@ -65,7 +69,11 @@ class SleepCheckRequest(BaseModel):
 
     @model_validator(mode="after")
     def _check_fields_together(self) -> "SleepCheckRequest":
-        self.to_night()  # NightData сам проверит связи между полями
+        try:
+            self.to_night()  # NightData сам проверит связи между полями
+        except InvalidNightError as exc:
+            problem = exc.problems[0]
+            raise PydanticCustomError(problem.code, problem.message, problem.ctx) from None
         return self
 
     def to_night(self) -> NightData:

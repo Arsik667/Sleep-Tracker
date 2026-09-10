@@ -1,6 +1,6 @@
 """FastAPI-приложение SleepTrack.
 
-    POST /api/sleep-check        оценка ночи; с ?save=true — ещё и сохранение в историю
+    POST /api/sleep-check        оценка ночи; ?save=true — ещё и сохранение, ?lang=en — советы по-английски
     GET  /api/history?limit=30   последние N сохранённых ночей, от свежих к старым
     GET  /api/history/summary    средний балл за 7/30 дней, тренд, недосып за неделю
     GET  /health                 состояние сервиса и БД
@@ -15,6 +15,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import date, timedelta
+from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -80,6 +81,7 @@ def health(db: Session = Depends(get_session)) -> dict:
 def sleep_check(
     payload: SleepCheckRequest,
     save: bool = Query(False, description="Сохранить ночь в историю"),
+    lang: Literal["ru", "en"] = Query("ru", description="Язык текстов советов"),
     db: Session = Depends(get_session),
 ) -> SleepCheckResponse:
     night = payload.to_night()
@@ -96,7 +98,7 @@ def sleep_check(
         previous = []
 
     result = calculate_sleep_score(night, previous)
-    recommendations = build_recommendations(night, result)
+    recommendations = build_recommendations(night, result, lang)
 
     entry_id, replaced = None, False
     if save:

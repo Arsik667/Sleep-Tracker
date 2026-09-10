@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { fetchHistory, fetchSummary, localToday } from '../api';
-import { CATEGORY, formatDate, formatHours } from '../labels';
+import { errorMessage, fetchHistory, fetchSummary, localToday } from '../api';
+import { formatDate, formatHours, useT } from '../i18n';
 
 const HISTORY_LIMIT = 30;
 const ROLLING_DAYS = 7;
@@ -56,6 +56,7 @@ function xTicks(d0, d1, plotWidth) {
 }
 
 function TrendChart({ entries }) {
+  const t = useT();
   const wrapRef = useRef(null);
   const width = useWidth(wrapRef);
   const [active, setActive] = useState(null);
@@ -123,7 +124,7 @@ function TrendChart({ entries }) {
       style={{ height: HEIGHT }}
       tabIndex={0}
       role="img"
-      aria-label={`График оценки сна за ${points.length} ноч. Стрелки влево и вправо — перемещение по ночам.`}
+      aria-label={t.history.chartLabel(points.length)}
       onKeyDown={onKeyDown}
       onFocus={() => setActive((i) => i ?? points.length - 1)}
       onBlur={() => setActive(null)}
@@ -140,7 +141,7 @@ function TrendChart({ entries }) {
           ))}
           {xTicks(d0, d1, plotW).map((d) => (
             <text key={d} className="chart__tick" x={x(d)} y={HEIGHT - 8} textAnchor="middle">
-              {formatDate(isoFromDay(d), { day: 'numeric', month: 'short' })}
+              {formatDate(isoFromDay(d), t, { day: 'numeric', month: 'short' })}
             </text>
           ))}
 
@@ -189,17 +190,20 @@ function TrendChart({ entries }) {
             ...(current.score >= (floor + 100) / 2 ? { bottom: MARGIN.bottom + 6 } : { top: MARGIN.top }),
           }}
         >
-          <div className="tooltip__date">{formatDate(current.sleep_date, { weekday: 'short', day: 'numeric', month: 'long' })}</div>
+          <div className="tooltip__date">
+            {formatDate(current.sleep_date, t, { weekday: 'short', day: 'numeric', month: 'long' })}
+          </div>
           <div className="tooltip__row">
             <span className="tooltip__key tooltip__key--dot" />
-            <strong>{current.score}</strong> {CATEGORY[current.category].label.toLowerCase()}
+            <strong>{current.score}</strong> {t.category[current.category].toLowerCase()}
           </div>
           <div className="tooltip__row">
             <span className="tooltip__key tooltip__key--line" />
-            <strong>{Math.round(current.avg)}</strong> среднее за 7 дней
+            <strong>{Math.round(current.avg)}</strong> {t.history.legendAvg}
           </div>
           <div className="tooltip__meta">
-            сон {formatHours(current.total_sleep_hours)} · {current.bedtime.slice(0, 5)}–{current.wake_time.slice(0, 5)}
+            {t.history.tipSleep} {formatHours(current.total_sleep_hours, t)} · {current.bedtime.slice(0, 5)}–
+            {current.wake_time.slice(0, 5)}
           </div>
         </div>
       )}
@@ -208,34 +212,38 @@ function TrendChart({ entries }) {
 }
 
 function HistoryTable({ entries }) {
+  const t = useT();
+  const col = t.history.columns;
   return (
     <div className="table-wrap">
       <table className="history-table">
         <thead>
           <tr>
-            <th>Дата</th>
-            <th>Отбой — подъём</th>
-            <th className="num">Сон</th>
-            <th className="num">WASO</th>
-            <th className="num">Пробужд.</th>
-            <th className="num">Балл</th>
-            <th>Категория</th>
+            <th>{col.date}</th>
+            <th>{col.times}</th>
+            <th className="num">{col.sleep}</th>
+            <th className="num">{col.waso}</th>
+            <th className="num">{col.awakenings}</th>
+            <th className="num">{col.score}</th>
+            <th>{col.category}</th>
           </tr>
         </thead>
         <tbody>
           {entries.map((e) => (
             <tr key={e.id}>
-              <td>{formatDate(e.sleep_date, { day: 'numeric', month: 'short', weekday: 'short' })}</td>
+              <td>{formatDate(e.sleep_date, t, { day: 'numeric', month: 'short', weekday: 'short' })}</td>
               <td>
                 {e.bedtime.slice(0, 5)} — {e.wake_time.slice(0, 5)}
               </td>
-              <td className="num">{formatHours(e.total_sleep_hours)}</td>
-              <td className="num">{e.waso_minutes} мин</td>
+              <td className="num">{formatHours(e.total_sleep_hours, t)}</td>
+              <td className="num">
+                {e.waso_minutes} {t.units.min}
+              </td>
               <td className="num">{e.awakenings}</td>
               <td className="num">
                 <strong>{e.score}</strong>
               </td>
-              <td>{CATEGORY[e.category].label}</td>
+              <td>{t.category[e.category]}</td>
             </tr>
           ))}
         </tbody>
@@ -245,44 +253,47 @@ function HistoryTable({ entries }) {
 }
 
 function SummaryTiles({ summary }) {
+  const t = useT();
+  const h = t.history;
   const { avg_score_7d: avg7, avg_score_30d: avg30, trend } = summary;
   const arrow = { up: '↑', down: '↓', flat: '→' }[trend.direction];
   const sign = trend.delta > 0 ? '+' : trend.delta < 0 ? '−' : '±';
   return (
     <div className="stats stats--summary">
       <div className="stat">
-        <div className="stat__label">Средний балл · 7 дней</div>
+        <div className="stat__label">{h.avg7}</div>
         <div className="stat__value">{avg7 === null ? '—' : Math.round(avg7)}</div>
-        <div className="stat__sub">по {summary.nights_7d} ноч.</div>
+        <div className="stat__sub">{h.nights(summary.nights_7d)}</div>
       </div>
       <div className="stat">
-        <div className="stat__label">Средний балл · 30 дней</div>
+        <div className="stat__label">{h.avg30}</div>
         <div className="stat__value">{avg30 === null ? '—' : Math.round(avg30)}</div>
-        <div className="stat__sub">по {summary.nights_30d} ноч.</div>
+        <div className="stat__sub">{h.nights(summary.nights_30d)}</div>
       </div>
       <div className="stat">
-        <div className="stat__label">Тренд</div>
+        <div className="stat__label">{h.trend}</div>
         <div className={`stat__value delta delta--${trend.direction ?? 'none'}`}>
           {trend.direction ? `${arrow} ${sign}${Math.abs(trend.delta)}` : '—'}
         </div>
         <div className="stat__sub">
-          {trend.direction ? `к прошлой неделе (${Math.round(trend.avg_score_prev_7d)})` : 'нужны записи за 2 недели'}
+          {trend.direction ? h.trendSub(Math.round(trend.avg_score_prev_7d)) : h.trendNone}
         </div>
       </div>
       <div className="stat">
-        <div className="stat__label">Недосып за неделю</div>
+        <div className="stat__label">{h.debtWeek}</div>
         <div className="stat__value">
-          {summary.sleep_debt_week_hours > 0 ? formatHours(summary.sleep_debt_week_hours) : 'нет'}
+          {summary.sleep_debt_week_hours > 0 ? formatHours(summary.sleep_debt_week_hours, t) : h.debtNone}
         </div>
-        <div className="stat__sub">от нормы {summary.sleep_norm_hours} ч за ночь</div>
+        <div className="stat__sub">{h.debtSub(summary.sleep_norm_hours)}</div>
       </div>
     </div>
   );
 }
 
 export default function HistoryChart({ refreshKey }) {
+  const t = useT();
   const [data, setData] = useState(null); // { entries, summary }
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // ApiError — текст выбираем при отрисовке, на текущем языке
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('chart');
 
@@ -297,11 +308,7 @@ export default function HistoryChart({ refreshKey }) {
       })
       .catch((e) => {
         if (cancelled) return;
-        setError(
-          e.status === 503
-            ? 'История недоступна: база данных не отвечает. Оценка сна при этом работает — без регулярности режима.'
-            : e.message
-        );
+        setError(e);
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -316,16 +323,16 @@ export default function HistoryChart({ refreshKey }) {
     <section className={`card history${loading && data ? ' history--loading' : ''}`}>
       <div className="history__head">
         <div>
-          <h2 className="card__title">История и тренд</h2>
-          <p className="history__subtitle">Последние {HISTORY_LIMIT} сохранённых ночей</p>
+          <h2 className="card__title">{t.history.title}</h2>
+          <p className="history__subtitle">{t.history.subtitle(HISTORY_LIMIT)}</p>
         </div>
         {entries.length > 0 && (
-          <div className="segmented" role="group" aria-label="Вид истории">
+          <div className="segmented" role="group" aria-label={t.history.view}>
             <button type="button" aria-pressed={view === 'chart'} onClick={() => setView('chart')}>
-              График
+              {t.history.chart}
             </button>
             <button type="button" aria-pressed={view === 'table'} onClick={() => setView('table')}>
-              Таблица
+              {t.history.table}
             </button>
           </div>
         )}
@@ -333,19 +340,16 @@ export default function HistoryChart({ refreshKey }) {
 
       {error && (
         <p className="alert" role="alert">
-          {error}
+          {error.status === 503 ? t.history.unavailable : errorMessage(error, t)}
         </p>
       )}
-      {!data && !error && <p className="muted">Загружаю историю…</p>}
+      {!data && !error && <p className="muted">{t.history.loading}</p>}
 
       {data && (
         <>
           <SummaryTiles summary={data.summary} />
           {entries.length === 0 ? (
-            <p className="empty">
-              Пока нет сохранённых ночей. Оценивайте сон с включённым «Сохранить в историю» — здесь появится график с
-              трендом.
-            </p>
+            <p className="empty">{t.history.empty}</p>
           ) : view === 'chart' ? (
             <figure className="chart-figure">
               <div className="legend">
@@ -353,19 +357,17 @@ export default function HistoryChart({ refreshKey }) {
                   <svg width="12" height="12" aria-hidden="true">
                     <circle cx="6" cy="6" r="4" className="chart__dot" />
                   </svg>
-                  балл за ночь
+                  {t.history.legendNight}
                 </span>
                 <span className="legend__item">
                   <svg width="18" height="12" aria-hidden="true">
                     <line x1="2" y1="6" x2="16" y2="6" className="chart__avg" />
                   </svg>
-                  среднее за 7 дней
+                  {t.history.legendAvg}
                 </span>
               </div>
               <TrendChart entries={entries} />
-              <figcaption className="chart-caption">
-                Линии сетки — границы категорий: от 50 «средне», от 70 «хорошо», от 85 «отлично».
-              </figcaption>
+              <figcaption className="chart-caption">{t.history.caption}</figcaption>
             </figure>
           ) : (
             <HistoryTable entries={entries} />

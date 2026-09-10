@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { localToday } from '../api';
-import { formatHours } from '../labels';
+import { formatHours, useT } from '../i18n';
 
 // Значения по умолчанию — обычная ночь, чтобы можно было сразу нажать «Оценить».
 const INITIAL = {
@@ -59,6 +59,7 @@ function Field({ name, label, hint, error, children }) {
 }
 
 export default function SleepForm({ onSubmit, loading, fieldErrors = {}, formErrors = [] }) {
+  const t = useT();
   const [values, setValues] = useState(INITIAL);
   const [save, setSave] = useState(true);
 
@@ -90,30 +91,30 @@ export default function SleepForm({ onSubmit, loading, fieldErrors = {}, formErr
 
   return (
     <form className="card sleep-form" onSubmit={handleSubmit} noValidate>
-      <h2 className="card__title">Как прошла ночь</h2>
+      <h2 className="card__title">{t.form.title}</h2>
 
       <fieldset>
-        <legend>Режим</legend>
+        <legend>{t.form.schedule}</legend>
         <div className="grid grid--2">
-          <Field name="sleep_date" label="Дата (утро)" error={fieldErrors.sleep_date}>
+          <Field name="sleep_date" label={t.form.date} error={fieldErrors.sleep_date}>
             {input('sleep_date', { type: 'date', max: localToday() })}
           </Field>
           <Field
             name="total_sleep_hours"
-            label="Сон, часов"
-            error={fieldErrors.total_sleep_hours || (sleepExceedsBed && 'Больше, чем времени в постели')}
-            hint="7.5 = 7 ч 30 мин"
+            label={t.form.sleepHours}
+            error={fieldErrors.total_sleep_hours || (sleepExceedsBed && t.form.sleepExceedsBed)}
+            hint={t.form.sleepHint}
           >
             {input('total_sleep_hours', { type: 'number', min: 0, max: 24, step: 'any', inputMode: 'decimal', required: true })}
           </Field>
-          <Field name="bedtime" label="Отбой" error={fieldErrors.bedtime}>
+          <Field name="bedtime" label={t.form.bedtime} error={fieldErrors.bedtime}>
             {input('bedtime', { type: 'time', required: true })}
           </Field>
           <Field
             name="wake_time"
-            label="Подъём"
+            label={t.form.wake}
             error={fieldErrors.wake_time}
-            hint={inBed ? `В постели ${formatHours(inBed / 60)}` : null}
+            hint={inBed ? t.form.inBed(formatHours(inBed / 60, t)) : null}
           >
             {input('wake_time', { type: 'time', required: true })}
           </Field>
@@ -121,12 +122,12 @@ export default function SleepForm({ onSubmit, loading, fieldErrors = {}, formErr
       </fieldset>
 
       <fieldset>
-        <legend>Пробуждения</legend>
+        <legend>{t.form.awake}</legend>
         <div className="grid grid--2">
-          <Field name="waso_minutes" label="Без сна ночью, мин" hint="WASO — после засыпания" error={fieldErrors.waso_minutes}>
+          <Field name="waso_minutes" label={t.form.waso} hint={t.form.wasoHint} error={fieldErrors.waso_minutes}>
             {input('waso_minutes', { type: 'number', min: 0, max: 1440, step: 1, inputMode: 'numeric' })}
           </Field>
-          <Field name="awakenings" label="Пробуждений" error={fieldErrors.awakenings}>
+          <Field name="awakenings" label={t.form.awakenings} error={fieldErrors.awakenings}>
             {input('awakenings', { type: 'number', min: 0, max: 100, step: 1, inputMode: 'numeric' })}
           </Field>
         </div>
@@ -134,27 +135,27 @@ export default function SleepForm({ onSubmit, loading, fieldErrors = {}, formErr
 
       <fieldset>
         <legend>
-          Стадии сна <span className="muted">— если есть трекер</span>
+          {t.form.stages} <span className="muted">{t.form.stagesNote}</span>
         </legend>
         <div className="grid grid--2">
-          <Field name="deep_sleep_minutes" label="Глубокий, мин" error={fieldErrors.deep_sleep_minutes}>
-            {input('deep_sleep_minutes', { type: 'number', min: 0, step: 1, inputMode: 'numeric', placeholder: 'не знаю' })}
+          <Field name="deep_sleep_minutes" label={t.form.deep} error={fieldErrors.deep_sleep_minutes}>
+            {input('deep_sleep_minutes', { type: 'number', min: 0, step: 1, inputMode: 'numeric', placeholder: t.form.unknown })}
           </Field>
-          <Field name="rem_sleep_minutes" label="REM, мин" error={fieldErrors.rem_sleep_minutes}>
-            {input('rem_sleep_minutes', { type: 'number', min: 0, step: 1, inputMode: 'numeric', placeholder: 'не знаю' })}
+          <Field name="rem_sleep_minutes" label={t.form.rem} error={fieldErrors.rem_sleep_minutes}>
+            {input('rem_sleep_minutes', { type: 'number', min: 0, step: 1, inputMode: 'numeric', placeholder: t.form.unknown })}
           </Field>
         </div>
       </fieldset>
 
       <fieldset>
-        <legend>Вечер перед сном</legend>
+        <legend>{t.form.evening}</legend>
         <label className="check">
           <input type="checkbox" checked={values.caffeine_after_14} onChange={set('caffeine_after_14')} />
-          Кофеин после 14:00 <span className="muted">−5</span>
+          {t.form.caffeine} <span className="muted">−5</span>
         </label>
         <label className="check">
           <input type="checkbox" checked={values.screen_before_bed} onChange={set('screen_before_bed')} />
-          Экран в последний час перед сном <span className="muted">−3</span>
+          {t.form.screen} <span className="muted">−3</span>
         </label>
       </fieldset>
 
@@ -169,10 +170,10 @@ export default function SleepForm({ onSubmit, loading, fieldErrors = {}, formErr
       <div className="sleep-form__actions">
         <label className="check">
           <input type="checkbox" checked={save} onChange={(e) => setSave(e.target.checked)} />
-          Сохранить в историю
+          {t.form.save}
         </label>
         <button type="submit" className="button" disabled={loading}>
-          {loading ? 'Считаю…' : 'Оценить сон'}
+          {loading ? t.form.submitting : t.form.submit}
         </button>
       </div>
     </form>

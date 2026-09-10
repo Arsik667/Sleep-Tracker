@@ -8,7 +8,8 @@ week-over-week change and accumulated sleep debt.
 
 ![SleepTrack: the night form, the score card and the history chart](docs/screenshot.png)
 
-<sub>History in the screenshot is synthetic (`python -m sleep_tracker.seed_demo`). The UI is in Russian.</sub>
+<sub>History in the screenshot is synthetic (`python -m sleep_tracker.seed_demo`). The UI is available in
+English and Russian — switch in the header or open the app with `?lang=en` / `?lang=ru`.</sub>
 
 ## Features
 
@@ -21,6 +22,7 @@ week-over-week change and accumulated sleep debt.
 | **Trend** | 7/30-day average, this week vs the previous one, weekly sleep debt vs 8 h; SVG chart of nightly scores and the 7-day rolling average, with a table view |
 | **CLI** | the same scoring from the terminal (`--json` for scripts and cron jobs) — no web server, no database |
 | **Works without a DB** | if the database is down, scoring still works (just without the consistency component); history endpoints return 503 |
+| **Two languages** | English and Russian UI; tips come from the API in the chosen language (`?lang=en`), validation errors carry a stable code in `type`, so the frontend shows them in the UI language |
 
 ## How the score works
 
@@ -144,14 +146,14 @@ Sleep hours can be written as `7.5`, `7,5` or `7:30`. Invalid input exits with c
 
 | Method | Path | |
 |---|---|---|
-| `POST` | `/api/sleep-check` | score + tips for one night; `?save=true` also stores it |
+| `POST` | `/api/sleep-check` | score + tips for one night; `?save=true` also stores it, `?lang=en` returns tips in English (default `ru`) |
 | `GET` | `/api/history?limit=30` | last N saved nights, newest first (1–365) |
 | `GET` | `/api/history/summary?as_of=YYYY-MM-DD` | 7/30-day averages, trend, weekly sleep debt |
 | `GET` | `/health` | always 200; `"database": "ok"` or `"unavailable"` |
 | `GET` | `/` | welcome message |
 
 ```bash
-curl -X POST "http://localhost:8000/api/sleep-check" \
+curl -X POST "http://localhost:8000/api/sleep-check?lang=en" \
   -H "Content-Type: application/json" \
   -d '{"sleep_date": "2026-09-10", "bedtime": "23:30", "wake_time": "07:00",
        "total_sleep_hours": 6.9, "waso_minutes": 20, "awakenings": 2,
@@ -179,8 +181,8 @@ Response (with the demo history loaded, so consistency is available):
   "history_nights_used": 7,
   "sleep_debt_hours": 1.1,
   "recommendations": [
-    {"component": "caffeine_after_14", "text": "Кофеин после 14:00 (−5 баллов). …"},
-    {"component": "general", "text": "Сон в хорошей форме — сохраняйте тот же режим, …"}
+    {"component": "caffeine_after_14", "text": "Caffeine after 2 pm (−5 points). It takes 5–6 hours to clear — …"},
+    {"component": "general", "text": "Your sleep is in good shape — keep the same schedule, weekends included."}
   ],
   "saved": false,
   "entry_id": null,
@@ -194,7 +196,9 @@ With `?save=true` the night is stored: `saved` becomes `true`, `entry_id` is fil
 (non-negative WASO and awakenings, sleep ≤ 24 h, …) are checked by Pydantic and come back
 as 422 errors pointing at the field; cross-field rules (sleep fits into time in bed, deep +
 REM ≤ total sleep, …) live in `core.NightData`, so the API and the CLI share one
-implementation.
+implementation. These come back with their own `type` (`sleep_exceeds_bed`,
+`stages_exceed_sleep`, `same_bed_and_wake`, …) and numbers in `ctx`, so a client can show
+the message in any language.
 
 ## Project structure
 
@@ -203,7 +207,7 @@ sleep-tracker/
 ├── sleep_tracker/
 │   ├── core/                  # pure Python, no web or DB imports
 │   │   ├── sleep_score.py     #   NightData, components, penalties, cap, categories
-│   │   ├── recommendations.py #   tips ranked by the points each problem cost
+│   │   ├── recommendations.py #   tips ranked by the points each problem cost (ru / en)
 │   │   └── summary.py         #   7/30-day averages, trend, weekly sleep debt
 │   ├── main.py                # FastAPI routes
 │   ├── schemas.py             # Pydantic request/response models
@@ -213,7 +217,7 @@ sleep-tracker/
 │   ├── cli.py                 # python -m sleep_tracker.cli
 │   └── seed_demo.py           # python -m sleep_tracker.seed_demo
 ├── frontend/                  # Create React App, no UI kits
-│   └── src/components/        #   SleepForm, ResultCard, HistoryChart (hand-written SVG)
+│   └── src/                   #   SleepForm, ResultCard, HistoryChart (hand-written SVG), i18n.js
 ├── tests/                     # pytest: scoring, tips, summary, CLI, API, demo data
 ├── Dockerfile                 # API image
 ├── frontend/Dockerfile        # React build → nginx

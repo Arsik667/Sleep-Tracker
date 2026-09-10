@@ -162,21 +162,43 @@ def test_field_errors_point_to_the_field(client, overrides, field):
 
 
 @pytest.mark.parametrize(
-    ("overrides", "message"),
+    ("overrides", "code", "message"),
     [
-        ({"total_sleep_hours": 9}, "больше, чем времени в постели"),
-        ({"deep_sleep_minutes": 300, "rem_sleep_minutes": 200}, "больше общего времени сна"),
-        ({"wake_time": "23:30"}, "совпадают"),
+        ({"total_sleep_hours": 9}, "sleep_exceeds_bed", "больше, чем времени в постели"),
+        ({"deep_sleep_minutes": 300, "rem_sleep_minutes": 200}, "stages_exceed_sleep", "больше общего времени сна"),
+        ({"wake_time": "23:30"}, "same_bed_and_wake", "совпадают"),
     ],
 )
-def test_cross_field_errors(client, overrides, message):
+def test_cross_field_errors(client, overrides, code, message):
     response = check(client, **overrides)
     assert response.status_code == 422
-    assert message in response.json()["detail"][0]["msg"]
+    error = response.json()["detail"][0]
+    assert error["type"] == code  # по коду фронтенд переводит ошибку
+    assert message in error["msg"]
+
+
+def test_cross_field_error_context(client):
+    error = check(client, total_sleep_hours=9).json()["detail"][0]
+    assert error["ctx"] == {"sleep_hours": 9.0, "in_bed_hours": 7.5}
 
 
 def test_future_date_is_rejected(client):
     response = check(client, sleep_date=(TODAY + timedelta(days=5)).isoformat())
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["type"] == "date_in_future"
+
+
+def test_tips_in_english(client):
+    ru = check(client, caffeine_after_14=True).json()
+    en = client.post("/api/sleep-check", params={"lang": "en"}, json={**NIGHT, "caffeine_after_14": True}).json()
+
+    assert en["score"] == ru["score"]
+    assert [t["component"] for t in en["recommendations"]] == [t["component"] for t in ru["recommendations"]]
+    assert en["recommendations"][0]["text"].startswith("Caffeine after 2 pm")
+
+
+def test_unknown_language_is_rejected(client):
+    response = client.post("/api/sleep-check", params={"lang": "de"}, json=NIGHT)
     assert response.status_code == 422
 
 
